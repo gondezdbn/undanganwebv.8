@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generator Undangan Pernikahan Digital Interaktif</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;700&family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode/html5-qrcode.min.js"></script>
+
+    <style>
+        :root {
+            --bg-primary: #fdfaf6; --bg-secondary: #ffffff; --text-primary: #3a2e20;
+            --text-secondary: #786452; --accent-color: #c5a985;
+            --font-serif: 'Playfair Display', serif; --font-cursive: 'Dancing Script', cursive;
+            --font-sans: 'Lato', sans-serif;
+        }
+        :root.dark {
+            --bg-primary: #1f2937; --bg-secondary: #374151;
+            --text-primary: #f3f4f6; --text-secondary: #9ca3af;
+        }
+        body { font-family: var(--font-sans); background-color: #f3f4f6; transition: background-color 0.3s ease; }
+        html.dark body { background-color: #111827; }
+        #preview-container, #checkin-panel { height: calc(100vh - 4rem); overflow-y: auto; scroll-behavior: smooth; }
+        .theme-bg-primary { background-color: var(--bg-primary); transition: background-color 0.3s ease; }
+        .theme-bg-secondary { background-color: var(--bg-secondary); transition: background-color 0.3s ease; }
+        .theme-text-primary { color: var(--text-primary); transition: color 0.3s ease; }
+        .theme-text-secondary { color: var(--text-secondary); transition: color 0.3s ease; }
+        .theme-accent { color: var(--accent-color); transition: color 0.3s ease; }
+        .theme-border-accent { border-color: var(--accent-color); transition: border-color 0.3s ease; }
+        .theme-button-primary { background-color: var(--text-primary); color: var(--bg-secondary); transition: all 0.3s ease; }
+        .theme-button-secondary { background-color: transparent; color: var(--text-primary); border-color: var(--text-primary); transition: all 0.3s ease; }
+        .theme-button-secondary:hover { background-color: var(--text-primary); color: var(--bg-primary); }
+        #invitation-cover { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background-size: cover; background-position: center; }
+        #audio-control { position: fixed; bottom: 20px; right: 20px; z-index: 110; }
+        @media print { * { display: none !important; } }
+        #qr-reader { border: 2px dashed #a8a29e; }
+        .toggle-checkbox:checked { right: 0; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #4f46e5; }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row">
+
+    <!-- Panel Formulir (Kiri) -->
+    <div id="form-panel" class="w-full md:w-1/3 bg-white p-6 shadow-lg h-screen overflow-y-auto">
+        <h1 class="text-2xl font-bold font-serif mb-2">Detail Undangan</h1>
+        <p class="text-gray-600 mb-6">Isi detail & gunakan ✨ AI untuk membantu Anda.</p>
+        
+        <div class="flex gap-2">
+            <button id="toggle-view-button" class="flex-1 w-full mb-6 flex items-center justify-center gap-2 bg-teal-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-teal-700"><i data-lucide="camera"></i> Check-in</button>
+            <a href="#premium-section" class="flex-1 w-full mb-6 flex items-center justify-center gap-2 bg-amber-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-amber-600"><i data-lucide="gem"></i> Premium</a>
+        </div>
+
+        <form id="invitation-form" class="space-y-6">
+            <fieldset class="border-t pt-4">
+                <legend class="text-lg font-semibold font-serif text-indigo-700">Tema & Pengaturan</legend>
+                <div class="space-y-4 mt-2">
+                    <div><label for="theme-selector" class="block text-sm font-medium text-gray-700">Pilih Tema</label><select id="theme-selector" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"><option value="classic-gold">Classic Gold</option><option value="rustic-green">Rustic Green</option><option value="modern-navy">Modern Navy</option></select></div>
+                    <div class="flex items-center justify-between"><label for="dark-mode-toggle" class="block text-sm font-medium text-gray-700">Mode Gelap</label><div class="relative inline-block w-10 align-middle select-none"><input type="checkbox" id="dark-mode-toggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-2 appearance-none cursor-pointer transition-all duration-300"/><label for="dark-mode-toggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label></div></div>
+                    <div><label for="audio-url" class="block text-sm font-medium text-gray-700">URL Audio Latar (mp3)</label><input type="text" id="audio-url" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm" placeholder="https://example.com/song.mp3"></div>
+                </div>
+            </fieldset>
+
+            <fieldset class="border-t pt-4"><legend class="text-lg font-semibold font-serif text-indigo-700">Data Utama</legend><div class="space-y-4 mt-2"><div><label for="guest-name" class="block text-sm font-medium">Nama Tamu</label><input type="text" id="guest-name" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="Bpk. Andi & Keluarga"></div><div><label for="groom-name" class="block text-sm font-medium">Mempelai Pria</label><input type="text" id="groom-name" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="Budi Santoso"></div><div><label for="groom-parents" class="block text-sm font-medium">Putra dari</label><input type="text" id="groom-parents" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="Bpk. Suryo & Ibu Wati"></div><div><label for="bride-name" class="block text-sm font-medium">Mempelai Wanita</label><input type="text" id="bride-name" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="Citra Lestari"></div><div><label for="bride-parents" class="block text-sm font-medium">Putri dari</label><input type="text" id="bride-parents" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="Bpk. Hartono & Ibu Endah"></div></div></fieldset>
+            <fieldset class="border-t pt-4"><legend class="text-lg font-semibold font-serif text-indigo-700">Detail Acara</legend><div class="space-y-4 mt-2"><div><label for="ceremony-date" class="block text-sm font-medium">Tgl & Waktu Akad</label><input type="text" id="ceremony-date" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="Sabtu, 14 Des 2024 | 09:00"></div><div><label for="ceremony-location" class="block text-sm font-medium">Alamat Akad</label><textarea id="ceremony-location" rows="2" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="Masjid Istiqlal"></textarea></div><div><label for="reception-date" class="block text-sm font-medium">Tgl & Waktu Resepsi</label><input type="text" id="reception-date" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="Sabtu, 14 Des 2024 | 19:00"></div><div><label for="reception-location" class="block text-sm font-medium">Alamat Resepsi</label><textarea id="reception-location" rows="2" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="Balai Kartini"></textarea></div><div><label for="maps-url" class="block text-sm font-medium">URL Google Maps (Embed)</label><input type="text" id="maps-url" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="Paste link embed"></div></div></fieldset>
+            <fieldset class="border-t pt-4"><legend class="text-lg font-semibold font-serif text-indigo-700">Cerita Cinta</legend><div class="space-y-4 mt-2">
+                <div><label for="story-meet-text" class="block text-sm font-medium">Awal Bertemu (Tulis singkat)</label><div class="relative"><textarea id="story-meet-text" rows="3" class="mt-1 block w-full border-gray-300 rounded-md pr-10"></textarea><button type="button" data-gemini-btn="story-meet" class="gemini-btn absolute bottom-2 right-2 p-1 bg-violet-100 rounded-full text-violet-600 hover:bg-violet-200"><i data-lucide="sparkles" class="w-4 h-4"></i><i data-lucide="loader-2" class="w-4 h-4 animate-spin hidden"></i></button></div><label for="story-meet-img" class="block text-sm font-medium mt-2">URL Foto</label><input type="text" id="story-meet-img" class="mt-1 block w-full border-gray-300 rounded-md"></div>
+                <div><label for="story-proposal-text" class="block text-sm font-medium">Lamaran (Tulis singkat)</label><div class="relative"><textarea id="story-proposal-text" rows="3" class="mt-1 block w-full border-gray-300 rounded-md pr-10"></textarea><button type="button" data-gemini-btn="story-proposal" class="gemini-btn absolute bottom-2 right-2 p-1 bg-violet-100 rounded-full text-violet-600 hover:bg-violet-200"><i data-lucide="sparkles" class="w-4 h-4"></i><i data-lucide="loader-2" class="w-4 h-4 animate-spin hidden"></i></button></div><label for="story-proposal-img" class="block text-sm font-medium mt-2">URL Foto</label><input type="text" id="story-proposal-img" class="mt-1 block w-full border-gray-300 rounded-md"></div>
+            </div></fieldset>
+            <fieldset class="border-t pt-4"><legend class="text-lg font-semibold font-serif text-indigo-700">Galeri & Tampilan</legend><div class="space-y-4 mt-2"><div><label for="background-url" class="block text-sm font-medium">URL Foto Latar</label><input type="text" id="background-url" class="mt-1 block w-full border-gray-300 rounded-md"></div><div><label for="gallery-urls" class="block text-sm font-medium">URL Galeri Foto</label><textarea id="gallery-urls" rows="4" class="mt-1 block w-full border-gray-300 rounded-md" placeholder="Satu URL per baris"></textarea></div><div><label for="quote" class="block text-sm font-medium">Quote</label><div class="flex items-center gap-2"><textarea id="quote" rows="2" class="mt-1 block w-full border-gray-300 rounded-md"></textarea><button type="button" data-gemini-btn="quote" class="gemini-btn p-2 bg-violet-100 rounded-full text-violet-600 hover:bg-violet-200"><i data-lucide="sparkles" class="w-5 h-5"></i><i data-lucide="loader-2" class="w-5 h-5 animate-spin hidden"></i></button></div></div></div></fieldset>
+            <fieldset class="border-t pt-4"><legend class="text-lg font-semibold font-serif text-indigo-700">Wedding Gift</legend><div id="gift-options-container" class="space-y-4 mt-2"></div><button type="button" id="add-gift-button" class="mt-4 w-full flex items-center justify-center gap-2 bg-indigo-100 text-indigo-700 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-200"><i data-lucide="plus-circle"></i> Tambah</button></fieldset>
+            <fieldset id="premium-section" class="border-t-4 border-amber-400 pt-4"><legend class="text-lg font-semibold font-serif text-amber-600">Fitur Premium</legend><div class="mt-2 p-4 bg-amber-50 rounded-lg"><p class="font-semibold">Tingkatkan undangan Anda!</p><ul class="list-disc list-inside text-gray-600 mt-2"><li>Tema eksklusif</li><li>Hapus watermark</li><li>Analitik pengunjung</li></ul><button type="button" id="upgrade-premium-button" class="mt-4 w-full bg-amber-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-amber-600">Upgrade Sekarang</button></div></fieldset>
+        </form>
+    </div>
+
+    <!-- Panel Pratinjau (Kanan) -->
+    <div id="preview-panel" class="w-full md:w-2/3 p-4 md:p-8">
+        <div id="action-buttons" class="flex gap-2 mb-4">
+            <button id="share-button" class="flex-1 flex items-center justify-center gap-2 bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700"><i data-lucide="share-2"></i> Bagikan</button>
+            <button id="print-button" class="flex-1 flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700"><i data-lucide="printer"></i> Cetak/PDF</button>
+        </div>
+        <div id="preview-container" class="rounded-2xl shadow-lg theme-bg-primary">
+            <div id="invitation-cover" style="background-image: url('https://placehold.co/1200x800/334155/e2e8f0?text=Background');"><div class="absolute inset-0 bg-black/60"></div><div class="relative text-center text-white p-8"><p class="text-lg">The Wedding Of</p><h1 id="cover-bride-groom-names" class="font-cursive text-6xl md:text-8xl my-4">[Mempelai]</h1><p class="text-lg mb-8">Kepada Yth. <span id="cover-guest-name" class="font-bold">[Nama Tamu]</span></p><button id="open-invitation-button" class="mt-4 inline-flex items-center gap-2 px-8 py-3 bg-white/90 text-gray-800 font-bold rounded-full shadow-lg hover:bg-white transition-transform hover:scale-105"><i data-lucide="mail"></i> Buka Undangan</button></div></div>
+            <div id="invitation-content" class="hidden">
+                <div class="text-center theme-text-primary bg-cover bg-center bg-no-repeat relative theme-bg-primary"><div class="relative p-8 md:p-16 min-h-screen flex flex-col justify-center items-center"><h1 id="preview-bride-groom-names" class="font-cursive text-6xl md:text-8xl my-4 theme-accent">[Mempelai]</h1><p class="text-lg mb-8 theme-text-secondary">Kami mengundang Anda untuk merayakan hari bahagia kami</p></div></div>
+                <div class="theme-bg-primary p-8 md:p-12 theme-text-primary"><div class="max-w-3xl mx-auto">
+                    <div class="text-center mb-12"><p class="text-lg theme-text-secondary">Bismillahirahmanirrahim</p><h3 id="preview-bride-name" class="text-5xl font-cursive theme-accent">[Nama Wanita]</h3><p class="text-md theme-text-secondary mt-2">Putri dari <span id="preview-bride-parents">[Ortu Wanita]</span></p><p class="font-serif text-6xl my-4 opacity-50 theme-accent">&</p><h3 id="preview-groom-name" class="text-5xl font-cursive theme-accent">[Nama Pria]</h3><p class="text-md theme-text-secondary mt-2">Putra dari <span id="preview-groom-parents">[Ortu Pria]</span></p></div>
+                    <blockquote class="text-center my-16"><p id="preview-quote" class="italic theme-text-secondary text-lg">"[Quote Pernikahan]"</p></blockquote>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 text-center my-16"><div><i data-lucide="gem" class="w-12 h-12 mx-auto theme-accent mb-4"></i><h4 class="font-serif text-3xl font-bold">Akad Nikah</h4><p id="preview-ceremony-date" class="text-lg font-semibold mt-2"></p><p id="preview-ceremony-location" class="theme-text-secondary mt-1"></p></div><div><i data-lucide="glass-water" class="w-12 h-12 mx-auto theme-accent mb-4"></i><h4 class="font-serif text-3xl font-bold">Resepsi</h4><p id="preview-reception-date" class="text-lg font-semibold mt-2"></p><p id="preview-reception-location" class="theme-text-secondary mt-1"></p></div></div>
+                    <div class="my-20"><h3 class="text-center font-serif text-4xl font-bold mb-12">Our Story</h3><div class="relative border-l-2 ml-6 theme-border-accent"><div class="mb-12"><div class="absolute w-4 h-4 rounded-full -left-2 mt-1 theme-accent" style="background-color: var(--accent-color);"></div><div class="ml-8"><h4 class="font-serif text-2xl font-bold">Awal Bertemu</h4><img id="preview-story-meet-img" class="my-4 rounded-lg shadow-md w-full object-cover h-64" alt="Foto"><p id="preview-story-meet-text" class="theme-text-secondary"></p></div></div><div class="mb-12"><div class="absolute w-4 h-4 rounded-full -left-2 mt-1" style="background-color: var(--accent-color);"></div><div class="ml-8"><h4 class="font-serif text-2xl font-bold">Lamaran</h4><img id="preview-story-proposal-img" class="my-4 rounded-lg shadow-md w-full object-cover h-64" alt="Foto"><p id="preview-story-proposal-text" class="theme-text-secondary"></p></div></div></div></div>
+                    <div class="my-16"><h3 class="text-center font-serif text-4xl font-bold mb-8">Lokasi Acara</h3><div class="aspect-w-16 aspect-h-9 rounded-lg overflow-hidden shadow-lg"><iframe id="preview-maps" src="" width="100%" height="450" style="border:0;" allowfullscreen="" loading="lazy"></iframe></div></div>
+                    <div class="my-16"><h3 class="text-center font-serif text-4xl font-bold mb-8">Galeri Kenangan</h3><div id="preview-gallery" class="grid grid-cols-2 md:grid-cols-3 gap-4"></div></div>
+                    <div class="my-16 theme-bg-secondary p-8 rounded-2xl shadow-inner"><h3 class="text-center font-serif text-4xl font-bold mb-8">Konfirmasi Kehadiran</h3><form id="rsvp-form" class="max-w-md mx-auto space-y-4"><div><label for="rsvp-name" class="block text-sm font-medium">Nama Anda</label><input type="text" id="rsvp-name" class="mt-1 block w-full border-gray-300 rounded-md text-gray-800" required></div><div><label for="rsvp-attendees" class="block text-sm font-medium">Jumlah Pengunjung</label><input type="number" id="rsvp-attendees" min="1" value="1" class="mt-1 block w-full border-gray-300 rounded-md text-gray-800" required></div><div><label class="block text-sm font-medium">Konfirmasi</label><div class="mt-2 flex gap-4"><label class="flex items-center"><input type="radio" name="attendance" value="hadir" checked><span class="ml-2">Akan Hadir</span></label><label class="flex items-center"><input type="radio" name="attendance" value="tidak"><span class="ml-2">Berhalangan</span></label></div></div><div><label for="rsvp-wishes" class="block text-sm font-medium">Ucapan & Doa</label><div class="relative"><textarea id="rsvp-wishes" rows="3" class="mt-1 block w-full border-gray-300 rounded-md text-gray-800 pr-10"></textarea><button type="button" data-gemini-btn="wish" class="gemini-btn absolute bottom-2 right-2 p-1 bg-violet-100 rounded-full text-violet-600 hover:bg-violet-200"><i data-lucide="sparkles" class="w-4 h-4"></i><i data-lucide="loader-2" class="w-4 h-4 animate-spin hidden"></i></button></div></div><button type="submit" class="w-full font-bold py-3 px-4 rounded-lg transition-colors theme-button-primary">Kirim & Dapatkan QR Code</button></form></div>
+                    <div id="qr-code-section" class="my-16 p-8 rounded-2xl text-center hidden"><h3 class="text-center font-serif text-4xl font-bold mb-4">Kode QR Anda</h3><p class="theme-text-secondary mb-6">Silakan tunjukkan kode ini di meja penerima tamu.</p><div id="qrcode-container" class="flex justify-center"></div><p id="qr-guest-name" class="mt-4 font-bold text-lg"></p></div>
+                    <div id="guest-book-section" class="my-16"><h3 class="text-center font-serif text-4xl font-bold mb-8">Buku Tamu</h3><div id="guest-book-list" class="space-y-4 max-h-96 overflow-y-auto p-4 theme-bg-secondary rounded-lg shadow-inner"><p class="text-center theme-text-secondary">Belum ada ucapan.</p></div></div>
+                    <div id="wedding-gift-section" class="my-16"><h3 class="text-center font-serif text-4xl font-bold mb-8">Wedding Gift</h3><p class="text-center theme-text-secondary max-w-2xl mx-auto mb-10">Doa restu Anda merupakan karunia yang sangat berarti. Namun jika memberi adalah ungkapan tanda kasih, Anda dapat memberi kado secara cashless.</p><div id="preview-gift-cards-container" class="grid grid-cols-1 md:grid-cols-2 gap-8"><div class="theme-bg-secondary p-6 rounded-2xl shadow-lg text-center flex flex-col"><i data-lucide="box" class="w-12 h-12 mx-auto theme-accent mb-4"></i><h4 class="font-serif text-2xl font-bold">Kirim Kado</h4><p class="theme-text-secondary my-4 flex-grow">Anda juga dapat mengirimkan kado ke alamat resepsi kami:</p><p id="preview-gift-address" class="text-lg font-semibold"></p><button data-copy-target="address" class="mt-4 w-full font-bold py-2 px-4 rounded-lg transition-colors theme-button-secondary border-2"><i data-lucide="copy" class="inline-block mr-2"></i>Salin Alamat</button></div></div></div>
+                    <p class="text-center text-sm theme-text-secondary mt-12">Merupakan suatu kehormatan dan kebahagiaan bagi kami apabila Anda berkenan hadir.</p><p class="font-cursive text-4xl mt-4 text-center theme-accent">Terima Kasih</p>
+                </div></div>
+            </div>
+        </div>
+        <div id="checkin-panel" class="hidden bg-white rounded-2xl shadow-lg p-8"><h2 class="text-3xl font-bold font-serif text-center mb-2">Mode Check-in Tamu</h2><p class="text-center text-gray-500 mb-6">Arahkan kamera ke QR Code tamu.</p><div id="qr-reader" class="w-full max-w-md mx-auto rounded-lg overflow-hidden"></div><div id="scan-result" class="mt-4 text-center"></div><h3 class="text-2xl font-semibold text-center mt-8 mb-4">Tamu Hadir (<span id="checked-in-count">0</span>)</h3><ul id="checked-in-list" class="list-disc list-inside max-w-md mx-auto bg-gray-50 p-4 rounded-lg"><li class="text-gray-400">Belum ada tamu.</li></ul></div>
+    </div>
+    
+    <div id="toast" class="fixed bottom-5 right-5 bg-gray-900 text-white py-2 px-4 rounded-lg shadow-lg opacity-0"><p id="toast-message"></p></div>
+    <audio id="background-audio" loop></audio>
+    <button id="audio-control" class="hidden w-12 h-12 bg-black/50 text-white rounded-full flex items-center justify-center shadow-lg"><i data-lucide="play"></i></button>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+        let guestList = [], checkedInGuests = [], isCheckinMode = false, html5QrCode;
+        const audio = document.getElementById('background-audio');
+        const audioControl = document.getElementById('audio-control');
+        const form = document.getElementById('invitation-form');
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+
+        const themes = {'classic-gold': {'--accent-color': '#c5a985'}, 'rustic-green': {'--accent-color': '#8a9e8c'}, 'modern-navy': {'--accent-color': '#3b5998'}};
+        const giftLogos = {'BCA': 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/Bank_Central_Asia_logo.svg/2560px-Bank_Central_Asia_logo.svg.png','Mandiri': 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/Bank_Mandiri_logo_2016.svg/2560px-Bank_Mandiri_logo_2016.svg.png','BNI': 'https://upload.wikimedia.org/wikipedia/id/thumb/5/55/BNI_logo.svg/1280px-BNI_logo.svg.png','BRI': 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/BRI_2020.svg/1280px-BRI_2020.svg.png','Dana': 'https://upload.wikimedia.org/wikipedia/commons/thumb/7/72/Logo_dana_blue.svg/2560px-Logo_dana_blue.svg.png','OVO': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/eb/Logo_ovo_purple.svg/1280px-Logo_ovo_purple.svg.png','Gopay': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Gopay_logo.svg/2560px-Gopay_logo.svg.png','ShopeePay': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f0/ShopeePay_logo.svg/1280px-ShopeePay_logo.svg.png','Lainnya': 'https://placehold.co/200x60/e2e8f0/64748b?text=Lainnya'};
+        
+        // Moved getVal outside updatePreview to fix scope issue.
+        // Made it null-safe to prevent crashes.
+        const getVal = (id, fallback = '') => {
+            const el = document.getElementById(id);
+            return el ? el.value : fallback;
+        };
+
+        const applyTheme = (themeName) => document.documentElement.style.setProperty('--accent-color', themes[themeName]['--accent-color']);
+        const setDarkMode = (isDark) => { document.documentElement.classList.toggle('dark', isDark); localStorage.setItem('darkMode', isDark); }
+        const showToast = (message) => { const el=document.getElementById('toast'); el.children[0].textContent=message; el.classList.remove('opacity-0'); setTimeout(()=>el.classList.add('opacity-0'),3000);};
+        
+        async function callGeminiAPI(prompt, button) {
+            const iconSparkles = button.querySelector('[data-lucide="sparkles"]');
+            const iconLoader = button.querySelector('[data-lucide="loader-2"]');
+            iconSparkles.classList.add('hidden');
+            iconLoader.classList.remove('hidden');
+            button.disabled = true;
+
+            const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+            const apiKey = ""; 
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`API call failed with status: ${response.status}`);
+                const result = await response.json();
+
+                if (result.candidates && result.candidates[0]?.content?.parts[0]?.text) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    console.error("Unexpected API response:", result);
+                    const reason = result.candidates?.[0]?.finishReason;
+                    return `Gagal membuat konten. Alasan: ${reason || 'Tidak diketahui'}.`;
+                }
+            } catch (error) {
+                console.error('Error calling Gemini API:', error);
+                return "Terjadi kesalahan saat menghubungi AI.";
+            } finally {
+                iconSparkles.classList.remove('hidden');
+                iconLoader.classList.add('hidden');
+                button.disabled = false;
+            }
+        }
+        
+        const updatePreview = () => {
+            const brideName = getVal('bride-name', '[Wanita]');
+            const groomName = getVal('groom-name', '[Pria]');
+            const combinedNames = `${brideName} & ${groomName}`;
+            document.getElementById('cover-bride-groom-names').textContent = combinedNames;
+            document.getElementById('preview-bride-groom-names').textContent = combinedNames;
+            document.getElementById('cover-guest-name').textContent = getVal('guest-name', '[Nama Tamu]');
+            
+            // Refactored to be cleaner
+            const textContentMap = {
+                'preview-bride-name': brideName,
+                'preview-groom-name': groomName,
+                'preview-bride-parents': getVal('bride-parents', '[Ortu Wanita]'),
+                'preview-groom-parents': getVal('groom-parents', '[Ortu Pria]'),
+                'preview-quote': `"${getVal('quote', '[Quote Pernikahan]')}"`,
+                'preview-ceremony-date': getVal('ceremony-date', '[Tgl Akad]'),
+                'preview-ceremony-location': getVal('ceremony-location', '[Lokasi Akad]'),
+                'preview-reception-date': getVal('reception-date', '[Tgl Resepsi]'),
+                'preview-reception-location': getVal('reception-location', '[Lokasi Resepsi]'),
+                'preview-story-meet-text': getVal('story-meet-text', '[Cerita...]'),
+                'preview-story-proposal-text': getVal('story-proposal-text', '[Cerita...]'),
+                'preview-gift-address': getVal('reception-location', '[Alamat Resepsi]')
+            };
+            for(const [id, value] of Object.entries(textContentMap)) {
+                const el = document.getElementById(id);
+                if(el) el.textContent = value;
+            }
+
+            document.getElementById('invitation-cover').style.backgroundImage = `url('${getVal('background-url', 'https://placehold.co/1200x800')}')`;
+            ['story-meet-img', 'story-proposal-img'].forEach(id => document.getElementById(`preview-${id}`).src = getVal(id, 'https://placehold.co/600x400'));
+            document.getElementById('preview-maps').src = getVal('maps-url', 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3966.471694769936!2d106.82473831534959!3d-6.201501995510697!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e69f3e4a3d3a23d%3A0x28b234e460020a0!2sMonumen%20Nasional!5e0!3m2!1sid!2sid!4v1677654321098!5m2!1sid!2sid');
+            audio.src = getVal('audio-url');
+            
+            const galleryContainer = document.getElementById('preview-gallery'); galleryContainer.innerHTML = ''; getVal('gallery-urls').split('\n').filter(url => url.trim()).forEach(url => {galleryContainer.innerHTML += `<div class="aspect-square"><img src="${url}" class="w-full h-full object-cover rounded-lg shadow-md" onerror="this.src='https://placehold.co/400x400?text=Error';"></div>`;}); if (!galleryContainer.innerHTML) galleryContainer.innerHTML = '<p class="col-span-full text-center theme-text-secondary">Galeri kosong.</p>';
+            const giftCardsContainer = document.getElementById('preview-gift-cards-container'); giftCardsContainer.querySelectorAll('.dynamic-gift-card').forEach(c => c.remove()); form.querySelectorAll('.gift-option-item').forEach(gf => { const name=gf.querySelector('[data-form-part="gift-name"]').value, account=gf.querySelector('[data-form-part="gift-account"]').value, holder=gf.querySelector('[data-form-part="gift-holder"]').value; if(account){ const card=document.createElement('div'); card.className='dynamic-gift-card theme-bg-secondary p-6 rounded-2xl shadow-lg text-center flex flex-col'; card.innerHTML=`<i data-lucide="gift" class="w-12 h-12 mx-auto theme-accent mb-4"></i><h4 class="font-serif text-2xl font-bold">Angpao Digital</h4><img src="${giftLogos[name]||giftLogos['Lainnya']}" class="h-10 mx-auto my-4 object-contain"><p class="text-lg font-semibold flex-grow">${account}</p><p class="theme-text-secondary mt-1">a/n ${holder||'[Nama]'}</p><button data-copy-target="${account}" class="mt-4 w-full font-bold py-2 px-4 rounded-lg transition-colors theme-button-secondary border-2"><i data-lucide="copy" class="inline-block mr-2"></i>Salin</button>`; giftCardsContainer.insertBefore(card,giftCardsContainer.lastElementChild);}});
+            lucide.createIcons();
+        };
+
+        const createGiftOptionForm = () => { const div=document.createElement('div'); div.className='gift-option-item border p-4 rounded-md space-y-2 relative'; div.innerHTML=`<button type="button" class="remove-gift-button absolute top-2 right-2 text-gray-400 hover:text-red-500"><i data-lucide="x-circle" class="w-5 h-5"></i></button><select data-form-part="gift-type" class="block w-full border-gray-300 rounded-md"><option value="Bank">Bank</option><option value="E-Wallet">E-Wallet</option></select><select data-form-part="gift-name" class="block w-full border-gray-300 rounded-md"></select><input type="text" data-form-part="gift-account" class="block w-full border-gray-300 rounded-md" placeholder="Nomor Rek./Telp."><input type="text" data-form-part="gift-holder" class="block w-full border-gray-300 rounded-md" placeholder="Atas Nama">`; document.getElementById('gift-options-container').appendChild(div); updateGiftNameOptions(div); lucide.createIcons();};
+        const updateGiftNameOptions = (parent) => { const nameSelector=parent.querySelector('[data-form-part="gift-name"]'), type=parent.querySelector('[data-form-part="gift-type"]').value; const options=(type==='Bank')?['BCA','Mandiri','BNI','BRI','Lainnya']:['Dana','OVO','Gopay','ShopeePay','Lainnya']; nameSelector.innerHTML=options.map(o=>`<option value="${o}">${o}</option>`).join('');};
+        const updateGuestBook = () => { const list=document.getElementById('guest-book-list'); list.innerHTML=''; const attending=guestList.filter(g=>g.attendance==='hadir'&&g.wishes); if(attending.length===0){list.innerHTML='<p class="text-center theme-text-secondary">Belum ada ucapan.</p>';return;} attending.forEach(g=>{list.innerHTML+=`<div class="p-3 border-b border-gray-200/50"><p class="font-bold">${g.name} (${g.attendees} orang)</p><p class="italic theme-text-secondary">"${g.wishes}"</p></div>`;});};
+        const generateQRCode = (data) => { const section=document.getElementById('qr-code-section'), container=document.getElementById('qrcode-container'); container.innerHTML=''; new QRCode(container,{text:JSON.stringify(data),width:180,height:180}); document.getElementById('qr-guest-name').textContent=data.name; section.classList.remove('hidden'); section.scrollIntoView({behavior:'smooth'}); };
+        const toggleCheckinMode = () => { isCheckinMode=!isCheckinMode; document.getElementById('preview-panel').classList.toggle('hidden',isCheckinMode); document.getElementById('checkin-panel').classList.toggle('hidden',!isCheckinMode); document.getElementById('toggle-view-button').innerHTML = isCheckinMode ? `<i data-lucide="arrow-left"></i> Kembali` : `<i data-lucide="camera"></i> Check-in`; isCheckinMode?startScanner():stopScanner(); lucide.createIcons();};
+        const startScanner = () => { if(!html5QrCode)html5QrCode=new Html5Qrcode("qr-reader"); const success=(text)=>{try{const data=JSON.parse(text),name=data.name,resEl=document.getElementById('scan-result');if(checkedInGuests.includes(name)){resEl.innerHTML=`<p class="text-yellow-600 font-bold">⚠️ ${name} sudah check-in.</p>`;}else{checkedInGuests.push(name);resEl.innerHTML=`<p class="text-green-600 font-bold">✅ Berhasil: ${name} (${data.attendees} org)</p>`;updateCheckedInList();}}catch(e){document.getElementById('scan-result').innerHTML=`<p class="text-red-600 font-bold">❌ QR Code tidak valid.</p>`;}}; html5QrCode.start({facingMode:"environment"},{fps:10,qrbox:{width:250,height:250}},success);};
+        const stopScanner = () => { if(html5QrCode&&html5QrCode.isScanning)html5QrCode.stop();};
+        const updateCheckedInList = () => { const list=document.getElementById('checked-in-list'), count=document.getElementById('checked-in-count'); list.innerHTML=''; count.textContent=checkedInGuests.length; if(checkedInGuests.length===0)list.innerHTML=`<li class="text-gray-400">Belum ada tamu.</li>`; else checkedInGuests.forEach(name=>list.innerHTML+=`<li>${name}</li>`);};
+
+        form.addEventListener('input', updatePreview);
+        form.addEventListener('change', (e) => { if(e.target.dataset.formPart==='gift-type')updateGiftNameOptions(e.target.closest('.gift-option-item')); updatePreview();});
+        document.getElementById('gift-options-container').addEventListener('click', (e) => { const btn=e.target.closest('.remove-gift-button'); if(btn){btn.closest('.gift-option-item').remove();updatePreview();}});
+        document.getElementById('add-gift-button').addEventListener('click', createGiftOptionForm);
+        document.getElementById('toggle-view-button').addEventListener('click', toggleCheckinMode);
+        document.getElementById('theme-selector').addEventListener('change', (e) => applyTheme(e.target.value));
+        darkModeToggle.addEventListener('change', (e) => setDarkMode(e.target.checked));
+        
+        document.getElementById('open-invitation-button').addEventListener('click', () => {
+            document.getElementById('invitation-cover').style.display = 'none';
+            document.getElementById('invitation-content').classList.remove('hidden');
+            if(audio.src) { audio.play().catch(e => {}); audioControl.classList.remove('hidden'); }
+            setTimeout(() => document.getElementById('invitation-content').scrollIntoView({behavior: 'smooth'}), 50);
+        });
+        
+        audioControl.addEventListener('click', () => { if(audio.paused) audio.play(); else audio.pause(); });
+        audio.onplay = () => { audioControl.innerHTML = '<i data-lucide="pause"></i>'; lucide.createIcons(); };
+        audio.onpause = () => { audioControl.innerHTML = '<i data-lucide="play"></i>'; lucide.createIcons(); };
+
+        document.getElementById('rsvp-form').addEventListener('submit', (e)=>{e.preventDefault(); const guestData={name:getVal('rsvp-name'),attendees:getVal('rsvp-attendees'),attendance:form.querySelector('input[name=attendance]:checked').value,wishes:getVal('rsvp-wishes')}; const idx=guestList.findIndex(g=>g.name===guestData.name); if(idx>-1)guestList[idx]=guestData; else guestList.push(guestData); updateGuestBook(); showToast(`Terima kasih, ${guestData.name}!`); if(guestData.attendance==='hadir')generateQRCode(guestData); else document.getElementById('qr-code-section').classList.add('hidden'); e.target.reset(); document.getElementById('rsvp-name').value = getVal('guest-name');});
+        document.querySelectorAll('.gemini-btn').forEach(btn => btn.addEventListener('click', async (e) => {
+            const btnType = e.currentTarget.dataset.geminiBtn;
+            const groomName = getVal('groom-name', 'Mempelai Pria'), brideName = getVal('bride-name', 'Mempelai Wanita');
+            let prompt = '', targetTextarea;
+            if(btnType === 'quote') { prompt = `Tuliskan satu kutipan pernikahan puitis untuk ${groomName} dan ${brideName}.`; targetTextarea = document.getElementById('quote'); }
+            else if (btnType === 'story-meet') { const notes = getVal('story-meet-text'); if(!notes){showToast('Isi cerita singkat dulu.');return;} prompt = `Kembangkan catatan ini jadi cerita romantis (1-2 paragraf) untuk bagian 'Awal Bertemu': "${notes}"`; targetTextarea = document.getElementById('story-meet-text'); }
+            else if (btnType === 'story-proposal') { const notes = getVal('story-proposal-text'); if(!notes){showToast('Isi cerita singkat dulu.');return;} prompt = `Kembangkan catatan ini jadi cerita romantis (1-2 paragraf) untuk bagian 'Lamaran': "${notes}"`; targetTextarea = document.getElementById('story-proposal-text'); }
+            else if (btnType === 'wish') { prompt = `Tuliskan ucapan dan doa pernikahan yang tulus untuk ${groomName} dan ${brideName}.`; targetTextarea = document.getElementById('rsvp-wishes'); }
+            if(prompt && targetTextarea) { const text = await callGeminiAPI(prompt, e.currentTarget); targetTextarea.value = text.replace(/"/g, ''); updatePreview(); }
+        }));
+        
+        const copyToClipboard = (text,msg) => {if(!text){showToast('Tidak ada data.');return;} navigator.clipboard.writeText(text).then(()=>showToast(msg),()=>showToast('Gagal menyalin.'));};
+        document.getElementById('share-button').addEventListener('click', ()=>copyToClipboard(window.location.href,'Tautan undangan disalin!'));
+        document.getElementById('print-button').addEventListener('click',()=>window.print());
+        document.getElementById('preview-gift-cards-container').addEventListener('click', (e)=>{ const btn=e.target.closest('button[data-copy-target]'); if(btn){if(btn.dataset.copyTarget==='address'){copyToClipboard(getVal('reception-location'),'Alamat disalin!');}else{copyToClipboard(btn.dataset.copyTarget,`Nomor disalin!`);}}});
+        document.getElementById('upgrade-premium-button').addEventListener('click', ()=>showToast('Fitur premium akan segera hadir!'));
+        document.getElementById('guest-name').addEventListener('input', (e) => { document.getElementById('rsvp-name').value = e.target.value; });
+        
+        const savedDarkMode = localStorage.getItem('darkMode') === 'true';
+        darkModeToggle.checked = savedDarkMode; setDarkMode(savedDarkMode);
+        applyTheme('classic-gold'); createGiftOptionForm(); updatePreview();
+        document.getElementById('rsvp-name').value = getVal('guest-name');
+    });
+    </script>
+</body>
+</html>
